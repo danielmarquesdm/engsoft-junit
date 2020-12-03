@@ -8,15 +8,25 @@ public class Usuario {
     private String matricula;
     private int livrosLocados;
 
-    public Usuario(){
+    public Usuario() {
         this.setLivrosLocados(0);
     }
 
-    public void adicionaLivroLocado(){
-        this.livrosLocados += 1;
+    public boolean adicionaLivroLocado() {
+        if (this.livrosLocados < 2) {
+            this.livrosLocados += 1;
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    public void devolveLivroLocado(){
-        this.livrosLocados -= 1;
+    public boolean devolveLivroLocado() {
+        if (this.livrosLocados > 0) {
+            this.livrosLocados -= 1;
+            return true;
+        } else {
+            return false;
+        }
     }
 }

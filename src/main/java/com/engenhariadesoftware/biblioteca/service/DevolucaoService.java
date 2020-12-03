@@ -3,11 +3,14 @@ package com.engenhariadesoftware.biblioteca.service;
 import com.engenhariadesoftware.biblioteca.model.Emprestimo;
 import com.engenhariadesoftware.biblioteca.model.Livro;
 import com.engenhariadesoftware.biblioteca.model.Usuario;
+import com.engenhariadesoftware.biblioteca.util.EmprestimoException;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
+@Slf4j
 public class DevolucaoService {
     Emprestimo emprestimo;
 
@@ -15,39 +18,48 @@ public class DevolucaoService {
         this.emprestimo = emprestimo;
     }
 
-    public void realizaDevolucao(Livro livro, Usuario usuario) {
+    public boolean realizaDevolucao(Livro livro, Usuario usuario) throws EmprestimoException {
         LocalDate dataDevolucao = emprestimo.getDataDevolucao();
         LocalDate dataPrevista = emprestimo.getDataPrevista();
 
-        if (dataDevolucao.isAfter(dataPrevista)) {
-            emprestimo.setValor(calculaValorDaMulta());
-        } else {
-            emprestimo.setValor(BigDecimal.valueOf(5));
+        if (livro.isEmprestado()) {
+            if (dataDevolucao.isAfter(dataPrevista)) {
+                emprestimo.setValor(calculaValorComMulta());
+            } else {
+                emprestimo.setValor(BigDecimal.valueOf(5));
+            }
+
+            livro.setEmprestado(false);
+
+            if (usuario.devolveLivroLocado()) {
+                return true;
+            } else {
+                String erro = "Usuario não possui livros locados.";
+                throw new EmprestimoException(erro);
+            }
         }
-
-        livro.setEmprestado(false);
-        usuario.devolveLivroLocado();
-
+        return false;
     }
 
-    public BigDecimal calculaValorDaMulta() {
+    public BigDecimal calculaValorComMulta() {
         int diasDeAtraso = calculaDiasDeAtraso();
+        log.info("dias atraso" + String.valueOf(diasDeAtraso));
         BigDecimal precoBase = BigDecimal.valueOf(5);
         BigDecimal multa = BigDecimal.valueOf(0.40 * diasDeAtraso);
         BigDecimal valorMaximo = precoBase.multiply(BigDecimal.valueOf(0.6));
 
-        if (precoBase.add(multa).compareTo(valorMaximo) < 0) {
+        if (multa.compareTo(valorMaximo) <= 0) {
             return precoBase.add(multa);
         } else {
-            return precoBase.add(precoBase.multiply(BigDecimal.valueOf(0.6)));
+            return precoBase.add(valorMaximo);
         }
     }
 
     public int calculaDiasDeAtraso() {
         LocalDate dataDevolucao = emprestimo.getDataDevolucao();
         LocalDate dataPrevista = emprestimo.getDataPrevista();
-        Long diasDeAtraso = ChronoUnit.DAYS.between(dataDevolucao, dataPrevista);
-        return diasDeAtraso.intValue();
+        long diasDeAtraso = ChronoUnit.DAYS.between(dataPrevista, dataDevolucao);
+        return (int) diasDeAtraso;
     }
 
 }
